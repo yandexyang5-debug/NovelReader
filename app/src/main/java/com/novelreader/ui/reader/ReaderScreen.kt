@@ -648,6 +648,7 @@ fun TOCDialog(
     )
 }
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingsDialog(
     settings: ReadingSettings,
