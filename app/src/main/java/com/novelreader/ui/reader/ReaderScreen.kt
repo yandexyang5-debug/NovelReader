@@ -16,9 +16,11 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.ArrowBack
 import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.List
@@ -532,46 +534,112 @@ fun SettingsDialog(
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 行间距
+                // 行间距（带加减按钮）
                 Text("行间距: ${String.format("%.1f", settings.lineHeight)}")
-                Slider(
-                    value = settings.lineHeight.coerceIn(1.0f, 4.0f),
-                    onValueChange = { value ->
-                        onSettingsChange(settings.copy(lineHeight = value.coerceIn(1.0f, 4.0f)))
-                    },
-                    valueRange = 1.0f..4.0f,
-                    steps = 29
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            val newValue = (settings.lineHeight - 0.1f).coerceIn(1.0f, 4.0f)
+                            onSettingsChange(settings.copy(lineHeight = newValue))
+                        }
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "减小")
+                    }
+                    Slider(
+                        value = settings.lineHeight.coerceIn(1.0f, 4.0f),
+                        onValueChange = { value ->
+                            onSettingsChange(settings.copy(lineHeight = value.coerceIn(1.0f, 4.0f)))
+                        },
+                        valueRange = 1.0f..4.0f,
+                        steps = 29,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = {
+                            val newValue = (settings.lineHeight + 0.1f).coerceIn(1.0f, 4.0f)
+                            onSettingsChange(settings.copy(lineHeight = newValue))
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "增大")
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 字间距
+                // 字间距（带加减按钮）
                 Text("字间距: ${String.format("%.1f", settings.letterSpacing)}sp")
-                Slider(
-                    value = settings.letterSpacing.coerceIn(0f, 5f),
-                    onValueChange = { value ->
-                        onSettingsChange(settings.copy(letterSpacing = value.coerceIn(0f, 5f)))
-                    },
-                    valueRange = 0f..5f,
-                    steps = 9
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            val newValue = (settings.letterSpacing - 0.5f).coerceIn(0f, 5f)
+                            onSettingsChange(settings.copy(letterSpacing = newValue))
+                        }
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "减小")
+                    }
+                    Slider(
+                        value = settings.letterSpacing.coerceIn(0f, 5f),
+                        onValueChange = { value ->
+                            onSettingsChange(settings.copy(letterSpacing = value.coerceIn(0f, 5f)))
+                        },
+                        valueRange = 0f..5f,
+                        steps = 9,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = {
+                            val newValue = (settings.letterSpacing + 0.5f).coerceIn(0f, 5f)
+                            onSettingsChange(settings.copy(letterSpacing = newValue))
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "增大")
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 段间距
+                // 段间距（带加减按钮）
                 Text("段间距: ${String.format("%.1f", settings.paragraphSpacing / 12)}")
-                Slider(
-                    value = settings.paragraphSpacing.coerceIn(0f, 24f),
-                    onValueChange = { value ->
-                        onSettingsChange(settings.copy(paragraphSpacing = value.coerceIn(0f, 24f)))
-                    },
-                    valueRange = 0f..24f,
-                    steps = 11
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            val newValue = (settings.paragraphSpacing - 2f).coerceIn(0f, 24f)
+                            onSettingsChange(settings.copy(paragraphSpacing = newValue))
+                        }
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "减小")
+                    }
+                    Slider(
+                        value = settings.paragraphSpacing.coerceIn(0f, 24f),
+                        onValueChange = { value ->
+                            onSettingsChange(settings.copy(paragraphSpacing = value.coerceIn(0f, 24f)))
+                        },
+                        valueRange = 0f..24f,
+                        steps = 11,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = {
+                            val newValue = (settings.paragraphSpacing + 2f).coerceIn(0f, 24f)
+                            onSettingsChange(settings.copy(paragraphSpacing = newValue))
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "增大")
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
-                // 背景颜色
+                // 背景颜色（删除黑色）
                 Text("背景颜色")
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -591,11 +659,6 @@ fun SettingsDialog(
                         color = Color(ReadingSettings.BG_GREEN),
                         isSelected = settings.backgroundColor == ReadingSettings.BG_GREEN,
                         onClick = { onSettingsChange(settings.copy(backgroundColor = ReadingSettings.BG_GREEN)) }
-                    )
-                    ColorButton(
-                        color = Color(ReadingSettings.BG_DARK),
-                        isSelected = settings.backgroundColor == ReadingSettings.BG_DARK,
-                        onClick = { onSettingsChange(settings.copy(backgroundColor = ReadingSettings.BG_DARK)) }
                     )
                 }
             }
