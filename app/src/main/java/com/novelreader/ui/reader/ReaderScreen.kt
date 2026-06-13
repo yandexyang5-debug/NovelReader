@@ -568,8 +568,9 @@ fun TOCDialog(
                     } else 0f
 
                     Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                        @Suppress("DEPRECATION")
                         LinearProgressIndicator(
-                            progress = { progress },
+                            progress = progress,
                             modifier = Modifier
                                 .fillMaxWidth()
                                 .height(4.dp),
