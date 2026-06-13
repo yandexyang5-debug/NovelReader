@@ -98,19 +98,30 @@ fun ReaderScreen(
                 )
             }
 
-            // 正文内容 - 使用key强制章节切换时重置滚动位置
+            // 正文内容 - 使用LazyColumn虚拟化滚动，避免长文本渲染问题
             key(currentChapterIndex) {
-                Text(
-                    text = currentContent,
-                    fontSize = settings.fontSize.sp,
-                    lineHeight = (settings.fontSize * settings.lineHeight).sp,
-                    letterSpacing = settings.letterSpacing.sp,
-                    color = Color(settings.textColor),
+                val paragraphs = remember(currentContent) {
+                    currentContent.split("\n").filter { it.isNotBlank() }
+                }
+                val listState = rememberLazyListState()
+
+                LazyColumn(
+                    state = listState,
                     modifier = Modifier
                         .fillMaxSize()
-                        .verticalScroll(rememberScrollState())
                         .padding(16.dp)
-                )
+                ) {
+                    items(paragraphs) { paragraph ->
+                        Text(
+                            text = paragraph,
+                            fontSize = settings.fontSize.sp,
+                            lineHeight = (settings.fontSize * settings.lineHeight).sp,
+                            letterSpacing = settings.letterSpacing.sp,
+                            color = Color(settings.textColor),
+                            modifier = Modifier.padding(bottom = settings.paragraphSpacing.dp)
+                        )
+                    }
+                }
             }
         }
 
