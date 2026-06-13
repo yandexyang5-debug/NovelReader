@@ -226,7 +226,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             oldSettings.paragraphSpacing != newSettings.paragraphSpacing ||
             oldSettings.backgroundColor != newSettings.backgroundColor ||
             oldSettings.textColor != newSettings.textColor ||
-            oldSettings.isNightMode != newSettings.isNightMode
+            oldSettings.isNightMode != newSettings.isNightMode ||
+            oldSettings.pageMode != newSettings.pageMode
         ) {
             saveSettings(newSettings)
         }
