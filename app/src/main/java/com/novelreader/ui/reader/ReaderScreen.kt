@@ -16,6 +16,7 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.ArrowUpward
 import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
@@ -25,6 +26,7 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -32,6 +34,7 @@ import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.novelreader.data.model.ReadingSettings
 import com.novelreader.ui.search.SearchScreen
+import kotlinx.coroutines.launch
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -311,6 +314,7 @@ fun TOCDialog(
 ) {
     var searchQuery by remember { mutableStateOf("") }
     val listState = rememberLazyListState()
+    val coroutineScope = rememberCoroutineScope()
 
     val filteredChapters = remember(chapters, searchQuery) {
         if (searchQuery.isBlank()) {
@@ -366,31 +370,86 @@ fun TOCDialog(
                     }
                 )
 
-                // 章节列表
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize()
-                ) {
-                    itemsIndexed(filteredChapters) { _, (originalIndex, chapter) ->
-                        Text(
-                            text = chapter.title,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .clickable {
-                                    onChapterClick(originalIndex)
+                // 章节列表（带滚动条）
+                Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize()
+                    ) {
+                        itemsIndexed(filteredChapters) { _, (originalIndex, chapter) ->
+                            Text(
+                                text = chapter.title,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        onChapterClick(originalIndex)
+                                    }
+                                    .background(
+                                        if (originalIndex == currentIndex)
+                                            MaterialTheme.colorScheme.primaryContainer
+                                        else
+                                            Color.Transparent
+                                    )
+                                    .padding(12.dp),
+                                color = if (originalIndex == currentIndex)
+                                    MaterialTheme.colorScheme.primary
+                                else
+                                    MaterialTheme.colorScheme.onSurface
+                            )
+                        }
+                    }
+
+                    // 滚动条指示器
+                    val scrollbarColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
+                    if (listState.layoutInfo.totalItemsCount > 0) {
+                        val firstVisibleIndex = listState.firstVisibleItemIndex
+                        val visibleItemsCount = listState.layoutInfo.visibleItemsInfo.size
+                        val totalItems = listState.layoutInfo.totalItemsCount
+
+                        if (totalItems > visibleItemsCount) {
+                            val scrollbarHeightFraction = visibleItemsCount.toFloat() / totalItems
+                            val scrollbarTopFraction = firstVisibleIndex.toFloat() / totalItems
+
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(4.dp)
+                                    .background(scrollbarColor.copy(alpha = 0.2f))
+                                    .align(Alignment.CenterEnd)
+                            )
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight(scrollbarHeightFraction)
+                                    .width(4.dp)
+                                    .background(scrollbarColor)
+                                    .align(Alignment.CenterEnd)
+                                    .graphicsLayer {
+                                        translationY = size.height * scrollbarTopFraction
+                                    }
+                            )
+                        }
+                    }
+
+                    // 返回顶部按钮
+                    if (filteredChapters.size > 10) {
+                        FloatingActionButton(
+                            onClick = {
+                                coroutineScope.launch {
+                                    listState.animateScrollToItem(0)
                                 }
-                                .background(
-                                    if (originalIndex == currentIndex)
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    else
-                                        Color.Transparent
-                                )
-                                .padding(12.dp),
-                            color = if (originalIndex == currentIndex)
-                                MaterialTheme.colorScheme.primary
-                            else
-                                MaterialTheme.colorScheme.onSurface
-                        )
+                            },
+                            modifier = Modifier
+                                .align(Alignment.BottomEnd)
+                                .padding(8.dp)
+                                .size(40.dp),
+                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                        ) {
+                            Icon(
+                                imageVector = Icons.Default.ArrowUpward,
+                                contentDescription = "返回顶部",
+                                tint = MaterialTheme.colorScheme.primary
+                            )
+                        }
                     }
                 }
             }
