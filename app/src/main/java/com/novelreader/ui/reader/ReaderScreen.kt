@@ -13,6 +13,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
@@ -27,6 +28,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.detectVerticalDragGestures
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -370,7 +373,7 @@ fun TOCDialog(
                     }
                 )
 
-                // 章节列表（带滚动条）
+                // 章节列表（带可拖拽滚动条）
                 Box(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
@@ -399,32 +402,75 @@ fun TOCDialog(
                         }
                     }
 
-                    // 滚动条指示器
-                    val scrollbarColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.6f)
-                    if (listState.layoutInfo.totalItemsCount > 0) {
-                        val firstVisibleIndex = listState.firstVisibleItemIndex
-                        val visibleItemsCount = listState.layoutInfo.visibleItemsInfo.size
+                    // 可拖拽滚动条
+                    if (listState.layoutInfo.totalItemsCount > 1) {
                         val totalItems = listState.layoutInfo.totalItemsCount
+                        var isDragging by remember { mutableStateOf(false) }
+                        var dragValue by remember { mutableFloatStateOf(0f) }
 
-                        if (totalItems > visibleItemsCount) {
-                            val scrollbarHeightFraction = visibleItemsCount.toFloat() / totalItems
-                            val scrollbarTopFraction = firstVisibleIndex.toFloat() / totalItems
+                        // 计算当前滚动位置
+                        val currentScrollFraction = if (isDragging) {
+                            dragValue
+                        } else {
+                            val firstVisible = listState.firstVisibleItemIndex
+                            val firstVisibleOffset = listState.firstVisibleItemScrollOffset
+                            val itemHeight = if (listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                                listState.layoutInfo.visibleItemsInfo.first().size.toFloat()
+                            } else {
+                                100f
+                            }
+                            (firstVisible + firstVisibleOffset / itemHeight) / (totalItems - 1).coerceAtLeast(1)
+                        }
 
+                        // 垂直可拖拽滚动条
+                        Box(
+                            modifier = Modifier
+                                .fillMaxHeight()
+                                .width(24.dp)
+                                .align(Alignment.CenterEnd)
+                                .pointerInput(totalItems) {
+                                    detectVerticalDragGestures(
+                                        onDragStart = { offset ->
+                                            isDragging = true
+                                            dragValue = (offset.y / size.height).coerceIn(0f, 1f)
+                                        },
+                                        onDragEnd = {
+                                            isDragging = false
+                                        },
+                                        onVerticalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            dragValue = (dragValue + dragAmount / size.height).coerceIn(0f, 1f)
+                                            val targetIndex = (dragValue * (totalItems - 1)).toInt().coerceIn(0, totalItems - 1)
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(targetIndex)
+                                            }
+                                        }
+                                    )
+                                }
+                        ) {
+                            // 滚动条背景
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .width(4.dp)
-                                    .background(scrollbarColor.copy(alpha = 0.2f))
-                                    .align(Alignment.CenterEnd)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                    .align(Alignment.Center)
                             )
+                            // 滚动条滑块
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight(scrollbarHeightFraction)
-                                    .width(4.dp)
-                                    .background(scrollbarColor)
-                                    .align(Alignment.CenterEnd)
+                                    .fillMaxHeight(0.15f.coerceAtMost(1f))
+                                    .width(8.dp)
+                                    .background(
+                                        if (isDragging)
+                                            MaterialTheme.colorScheme.primary
+                                        else
+                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .align(Alignment.Center)
                                     .graphicsLayer {
-                                        translationY = size.height * scrollbarTopFraction
+                                        translationY = (size.height * 2.5f) * (currentScrollFraction - 0.5f)
                                     }
                             )
                         }
