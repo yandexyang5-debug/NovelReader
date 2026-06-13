@@ -15,6 +15,7 @@ object ChapterParser {
         "^正文$".toRegex(),
         "^序$".toRegex(),
         "^序章$".toRegex(),
+        "^序言$".toRegex(),
         "^番外$".toRegex(),
         "^尾声$".toRegex(),
         "^后记$".toRegex(),
