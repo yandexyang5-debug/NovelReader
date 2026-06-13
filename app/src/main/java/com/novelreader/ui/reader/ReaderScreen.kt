@@ -561,32 +561,7 @@ fun TOCDialog(
                     }
                 )
 
-                // 阅读进度指示
-                if (filteredChapters.isNotEmpty()) {
-                    val progress = if (filteredChapters.size > 1) {
-                        currentIndex.toFloat() / (filteredChapters.size - 1)
-                    } else 0f
-
-                    Column(modifier = Modifier.padding(bottom = 8.dp)) {
-                        @Suppress("DEPRECATION")
-                        LinearProgressIndicator(
-                            progress = progress,
-                            modifier = Modifier
-                                .fillMaxWidth()
-                                .height(4.dp),
-                            color = MaterialTheme.colorScheme.primary,
-                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
-                        )
-                        Text(
-                            text = "当前: 第${currentIndex + 1}章 / 共${filteredChapters.size}章",
-                            fontSize = 12.sp,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            modifier = Modifier.padding(top = 4.dp)
-                        )
-                    }
-                }
-
-                // 章节列表 + 返回顶部按钮
+                // 章节列表 + 可拖拽滚动条
                 Box(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
@@ -615,24 +590,86 @@ fun TOCDialog(
                         }
                     }
 
-                    // 返回顶部按钮（左下角）
-                    if (filteredChapters.size > 10) {
-                        FloatingActionButton(
-                            onClick = {
-                                coroutineScope.launch {
-                                    listState.animateScrollToItem(0)
+                    // 可拖拽滚动条（右侧）
+                    if (listState.layoutInfo.totalItemsCount > 5) {
+                        val totalItems = listState.layoutInfo.totalItemsCount
+                        val visibleItems = listState.layoutInfo.visibleItemsInfo.size
+                        val thumbHeightFraction = (visibleItems.toFloat() / totalItems).coerceIn(0.15f, 1f)
+
+                        var scrollFraction by remember { mutableFloatStateOf(0f) }
+
+                        LaunchedEffect(listState) {
+                            snapshotFlow {
+                                val firstVisible = listState.firstVisibleItemIndex
+                                val firstVisibleOffset = listState.firstVisibleItemScrollOffset
+                                val itemHeight = if (listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                                    listState.layoutInfo.visibleItemsInfo.first().size.toFloat()
+                                } else {
+                                    100f
                                 }
-                            },
+                                val scrollPosition = firstVisible + firstVisibleOffset / itemHeight
+                                if (totalItems <= 1) 0f
+                                else (scrollPosition / (totalItems - 1)).coerceIn(0f, 1f)
+                            }.collect { fraction ->
+                                scrollFraction = fraction
+                            }
+                        }
+
+                        Box(
                             modifier = Modifier
-                                .align(Alignment.BottomStart)
-                                .padding(8.dp)
-                                .size(40.dp),
-                            containerColor = MaterialTheme.colorScheme.primaryContainer
+                                .fillMaxHeight()
+                                .width(30.dp)
+                                .align(Alignment.CenterEnd)
+                                .pointerInput(totalItems) {
+                                    detectVerticalDragGestures(
+                                        onDragStart = { offset ->
+                                            val touchFraction = (offset.y / size.height).coerceIn(0f, 1f)
+                                            val targetIndex = (touchFraction * (totalItems - 1)).toInt().coerceIn(0, totalItems - 1)
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(targetIndex)
+                                            }
+                                        },
+                                        onDragEnd = { },
+                                        onVerticalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            val itemHeight = if (listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                                                listState.layoutInfo.visibleItemsInfo.first().size.toFloat()
+                                            } else {
+                                                100f
+                                            }
+                                            val itemsToScroll = (-dragAmount / itemHeight).toInt()
+                                            if (itemsToScroll != 0) {
+                                                val currentIndex = listState.firstVisibleItemIndex
+                                                val targetIndex = (currentIndex + itemsToScroll).coerceIn(0, totalItems - 1)
+                                                coroutineScope.launch {
+                                                    listState.scrollToItem(targetIndex)
+                                                }
+                                            }
+                                        }
+                                    )
+                                }
                         ) {
-                            Icon(
-                                imageVector = Icons.Default.ArrowUpward,
-                                contentDescription = "返回顶部",
-                                tint = MaterialTheme.colorScheme.primary
+                            // 轨道背景
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight()
+                                    .width(4.dp)
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
+                                    .align(Alignment.Center)
+                            )
+                            // 滑块
+                            Box(
+                                modifier = Modifier
+                                    .fillMaxHeight(thumbHeightFraction)
+                                    .width(8.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
+                                        shape = RoundedCornerShape(4.dp)
+                                    )
+                                    .align(Alignment.TopCenter)
+                                    .graphicsLayer {
+                                        translationY = scrollFraction * (size.height * (1f - thumbHeightFraction))
+                                    }
                             )
                         }
                     }
@@ -640,8 +677,42 @@ fun TOCDialog(
             }
         },
         confirmButton = {
-            TextButton(onClick = onDismiss) {
-                Text("关闭")
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                // 返回顶部按钮（左侧）
+                if (filteredChapters.size > 10) {
+                    TextButton(
+                        onClick = {
+                            coroutineScope.launch {
+                                listState.animateScrollToItem(0)
+                            }
+                        }
+                    ) {
+                        Icon(
+                            imageVector = Icons.Default.ArrowUpward,
+                            contentDescription = null,
+                            modifier = Modifier.padding(end = 4.dp)
+                        )
+                        Text("顶部")
+                    }
+                } else {
+                    Spacer(modifier = Modifier.width(1.dp))
+                }
+
+                // 当前进度
+                Text(
+                    text = "${currentIndex + 1}/${filteredChapters.size}",
+                    modifier = Modifier.align(Alignment.CenterVertically),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 14.sp
+                )
+
+                // 关闭按钮（右侧）
+                TextButton(onClick = onDismiss) {
+                    Text("关闭")
+                }
             }
         }
     )
