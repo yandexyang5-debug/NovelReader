@@ -25,6 +25,14 @@ object FileImporter {
             // 读取文件内容（自动检测编码）
             val content = readTextWithEncoding(internalFile)
 
+            // 如果不是UTF-8编码，转换为UTF-8保存
+            val bytes = internalFile.readBytes()
+            val encoding = detectEncoding(bytes)
+            if (encoding != Charsets.UTF_8) {
+                // 转换为UTF-8并覆盖保存
+                internalFile.writeText(content, Charsets.UTF_8)
+            }
+
             // 提取书名和作者
             val (title, author) = extractMetadata(content, fileName)
 
