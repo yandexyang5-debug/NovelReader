@@ -44,7 +44,7 @@ object ChapterParser {
                 )
                 chapters.add(chapter)
             }
-            currentOffset += line.toByteArray(Charsets.UTF_8).size + 1 // +1 for newline
+            currentOffset += line.length + 1 // 字符数 + 换行符
         }
 
         // 计算每个章节的结束偏移和字符数
@@ -72,22 +72,17 @@ object ChapterParser {
      * 计算每个章节的结束偏移和字符数
      */
     private fun calculateChapterBounds(chapters: MutableList<Chapter>, text: String) {
-        val textBytes = text.toByteArray(Charsets.UTF_8)
-
         for (i in chapters.indices) {
             val chapter = chapters[i]
             val nextStartOffset = if (i < chapters.size - 1) {
                 chapters[i + 1].startOffset
             } else {
-                textBytes.size
+                text.length
             }
 
             chapters[i] = chapter.copy(
                 endOffset = nextStartOffset,
-                charCount = text.substring(
-                    chapter.startOffset.coerceAtMost(text.length),
-                    nextStartOffset.coerceAtMost(text.length)
-                ).length
+                charCount = nextStartOffset - chapter.startOffset
             )
         }
     }

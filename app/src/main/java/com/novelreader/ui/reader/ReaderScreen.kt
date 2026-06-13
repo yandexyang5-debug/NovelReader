@@ -9,10 +9,14 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ArrowBack
+import androidx.compose.material.icons.filled.Clear
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.List
@@ -27,6 +31,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
 import com.novelreader.data.model.ReadingSettings
+import com.novelreader.ui.search.SearchScreen
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -190,35 +195,70 @@ fun ReaderScreen(
             exit = fadeOut(),
             modifier = Modifier.align(Alignment.BottomCenter)
         ) {
-            Row(
+            Column(
                 modifier = Modifier
                     .fillMaxWidth()
                     .padding(bottom = 80.dp)
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically
+                    .background(Color.Black.copy(alpha = 0.7f))
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
             ) {
-                // 上一章按钮
-                TextButton(
-                    onClick = { viewModel.goToPreviousChapter() },
-                    enabled = currentChapterIndex > 0
-                ) {
-                    Text("‹ 上一章", color = Color.White)
+                // 进度条滑块
+                if (chapters.isNotEmpty()) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically
+                    ) {
+                        Text(
+                            text = "1",
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
+                        Slider(
+                            value = currentChapterIndex.toFloat(),
+                            onValueChange = { viewModel.goToChapter(it.toInt()) },
+                            valueRange = 0f..(chapters.size - 1).coerceAtLeast(1).toFloat(),
+                            modifier = Modifier
+                                .weight(1f)
+                                .padding(horizontal = 8.dp),
+                            colors = SliderDefaults.colors(
+                                thumbColor = Color.White,
+                                activeTrackColor = Color(ReadingSettings.PRIMARY),
+                                inactiveTrackColor = Color.Gray
+                            )
+                        )
+                        Text(
+                            text = "${chapters.size}",
+                            color = Color.White,
+                            fontSize = 12.sp
+                        )
+                    }
                 }
 
-                // 章节进度
-                Text(
-                    text = "${currentChapterIndex + 1}/${chapters.size}",
-                    color = Color.White,
-                    fontSize = 14.sp
-                )
-
-                // 下一章按钮
-                TextButton(
-                    onClick = { viewModel.goToNextChapter() },
-                    enabled = currentChapterIndex < chapters.size - 1
+                // 上一章/下一章
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically
                 ) {
-                    Text("下一章 ›", color = Color.White)
+                    TextButton(
+                        onClick = { viewModel.goToPreviousChapter() },
+                        enabled = currentChapterIndex > 0
+                    ) {
+                        Text("‹ 上一章", color = Color.White)
+                    }
+
+                    Text(
+                        text = "${currentChapterIndex + 1}/${chapters.size}",
+                        color = Color.White,
+                        fontSize = 14.sp
+                    )
+
+                    TextButton(
+                        onClick = { viewModel.goToNextChapter() },
+                        enabled = currentChapterIndex < chapters.size - 1
+                    ) {
+                        Text("下一章 ›", color = Color.White)
+                    }
                 }
             }
         }
@@ -234,6 +274,19 @@ fun ReaderScreen(
                 viewModel.hideTOC()
             },
             onDismiss = { viewModel.hideTOC() }
+        )
+    }
+
+    // 搜索界面
+    if (isSearchVisible) {
+        SearchScreen(
+            chapters = chapters,
+            fullContent = viewModel.fullContent,
+            onBackClick = { viewModel.hideSearch() },
+            onResultClick = { index ->
+                viewModel.goToChapter(index)
+                viewModel.hideSearch()
+            }
         )
     }
 
@@ -254,33 +307,78 @@ fun TOCDialog(
     onChapterClick: (Int) -> Unit,
     onDismiss: () -> Unit
 ) {
+    var searchQuery by remember { mutableStateOf("") }
+    val listState = rememberLazyListState()
+
+    val filteredChapters = remember(chapters, searchQuery) {
+        if (searchQuery.isBlank()) {
+            chapters.mapIndexed { index, chapter -> index to chapter }
+        } else {
+            chapters.mapIndexed { index, chapter -> index to chapter }
+                .filter { it.second.title.contains(searchQuery, ignoreCase = true) }
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("目录") },
         text = {
             Column(
-                modifier = Modifier
-                    .fillMaxHeight(0.7f)
-                    .verticalScroll(rememberScrollState())
+                modifier = Modifier.fillMaxHeight(0.7f)
             ) {
-                chapters.forEachIndexed { index, chapter ->
-                    Text(
-                        text = chapter.title,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .clickable { onChapterClick(index) }
-                            .background(
-                                if (index == currentIndex)
-                                    MaterialTheme.colorScheme.primaryContainer
-                                else
-                                    Color.Transparent
-                            )
-                            .padding(12.dp),
-                        color = if (index == currentIndex)
-                            MaterialTheme.colorScheme.primary
-                        else
-                            MaterialTheme.colorScheme.onSurface
-                    )
+                // 搜索框
+                OutlinedTextField(
+                    value = searchQuery,
+                    onValueChange = { searchQuery = it },
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(bottom = 8.dp),
+                    placeholder = { Text("搜索章节...") },
+                    trailingIcon = {
+                        if (searchQuery.isNotEmpty()) {
+                            IconButton(onClick = { searchQuery = "" }) {
+                                Icon(
+                                    imageVector = Icons.Default.Clear,
+                                    contentDescription = "清除"
+                                )
+                            }
+                        }
+                    },
+                    singleLine = true,
+                    leadingIcon = {
+                        Icon(
+                            imageVector = Icons.Default.Search,
+                            contentDescription = null
+                        )
+                    }
+                )
+
+                // 章节列表
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize()
+                ) {
+                    itemsIndexed(filteredChapters) { _, (originalIndex, chapter) ->
+                        Text(
+                            text = chapter.title,
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clickable {
+                                    onChapterClick(originalIndex)
+                                }
+                                .background(
+                                    if (originalIndex == currentIndex)
+                                        MaterialTheme.colorScheme.primaryContainer
+                                    else
+                                        Color.Transparent
+                                )
+                                .padding(12.dp),
+                            color = if (originalIndex == currentIndex)
+                                MaterialTheme.colorScheme.primary
+                            else
+                                MaterialTheme.colorScheme.onSurface
+                        )
+                    }
                 }
             }
         },
@@ -321,6 +419,28 @@ fun SettingsDialog(
                     onValueChange = { onSettingsChange(settings.copy(lineHeight = it)) },
                     valueRange = 1.0f..4.0f,
                     steps = 29
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 字间距
+                Text("字间距: ${String.format("%.1f", settings.letterSpacing)}sp")
+                Slider(
+                    value = settings.letterSpacing,
+                    onValueChange = { onSettingsChange(settings.copy(letterSpacing = it)) },
+                    valueRange = 0f..5f,
+                    steps = 9
+                )
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 段间距
+                Text("段间距: ${String.format("%.1f", settings.paragraphSpacing / 12)}")
+                Slider(
+                    value = settings.paragraphSpacing,
+                    onValueChange = { onSettingsChange(settings.copy(paragraphSpacing = it)) },
+                    valueRange = 0f..24f,
+                    steps = 11
                 )
 
                 Spacer(modifier = Modifier.height(16.dp))

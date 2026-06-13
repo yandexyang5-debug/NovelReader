@@ -42,8 +42,11 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
                 if (result != null) {
                     val (book, content) = result
 
+                    // 直接使用book的UUID作为bookId
+                    val bookId = book.id
+
                     // 插入书籍
-                    val bookId = repository.insertBook(book).toString()
+                    repository.insertBook(book)
 
                     // 解析并插入章节
                     val chapters = FileImporter.parseChapters(content, bookId)
@@ -51,7 +54,6 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
 
                     // 更新书籍章节数
                     repository.updateBook(book.copy(
-                        id = bookId,
                         chapterCount = chapters.size
                     ))
 

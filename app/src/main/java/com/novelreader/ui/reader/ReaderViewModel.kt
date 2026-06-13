@@ -46,7 +46,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val _isSettingsVisible = MutableStateFlow(false)
     val isSettingsVisible: StateFlow<Boolean> = _isSettingsVisible.asStateFlow()
 
-    private var fullContent: String = ""
+    var fullContent: String = ""
+        private set
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
