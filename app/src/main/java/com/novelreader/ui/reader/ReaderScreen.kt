@@ -552,7 +552,31 @@ fun TOCDialog(
                     }
                 )
 
-                // 章节列表（带可拖拽滚动条）
+                // 阅读进度指示
+                if (filteredChapters.isNotEmpty()) {
+                    val progress = if (filteredChapters.size > 1) {
+                        currentIndex.toFloat() / (filteredChapters.size - 1)
+                    } else 0f
+
+                    Column(modifier = Modifier.padding(bottom = 8.dp)) {
+                        LinearProgressIndicator(
+                            progress = { progress },
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .height(4.dp),
+                            color = MaterialTheme.colorScheme.primary,
+                            trackColor = MaterialTheme.colorScheme.surfaceVariant,
+                        )
+                        Text(
+                            text = "当前: 第${currentIndex + 1}章 / 共${filteredChapters.size}章",
+                            fontSize = 12.sp,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(top = 4.dp)
+                        )
+                    }
+                }
+
+                // 章节列表 + 返回顶部按钮
                 Box(modifier = Modifier.fillMaxSize()) {
                     LazyColumn(
                         state = listState,
@@ -581,100 +605,7 @@ fun TOCDialog(
                         }
                     }
 
-                    // 可拖拽滚动条
-                    if (listState.layoutInfo.totalItemsCount > 1) {
-                        val totalItems = listState.layoutInfo.totalItemsCount
-
-                        // 滚动条高度比例（可见区域占总内容的比例）
-                        val thumbHeightFraction = remember(totalItems, listState.layoutInfo.visibleItemsInfo.size) {
-                            val visibleCount = listState.layoutInfo.visibleItemsInfo.size
-                            (visibleCount.toFloat() / totalItems).coerceIn(0.15f, 1f)
-                        }
-
-                        // 使用 mutableStateOf 存储滚动位置，这样拖拽时能实时更新
-                        var scrollFraction by remember { mutableFloatStateOf(0f) }
-
-                        // 使用 snapshotFlow 监听滚动变化
-                        LaunchedEffect(listState) {
-                            snapshotFlow {
-                                val firstVisible = listState.firstVisibleItemIndex
-                                val firstVisibleOffset = listState.firstVisibleItemScrollOffset
-                                val itemHeight = if (listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
-                                    listState.layoutInfo.visibleItemsInfo.first().size.toFloat()
-                                } else {
-                                    100f
-                                }
-                                val scrollPosition = firstVisible + firstVisibleOffset / itemHeight
-                                if (totalItems <= 1) 0f
-                                else (scrollPosition / (totalItems - 1)).coerceIn(0f, 1f)
-                            }.collect { fraction ->
-                                scrollFraction = fraction
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxHeight()
-                                .width(30.dp)
-                                .align(Alignment.CenterEnd)
-                                .pointerInput(totalItems) {
-                                    detectVerticalDragGestures(
-                                        onDragStart = { offset ->
-                                            // 点击位置直接跳转
-                                            val touchFraction = (offset.y / size.height).coerceIn(0f, 1f)
-                                            val targetIndex = (touchFraction * (totalItems - 1)).toInt().coerceIn(0, totalItems - 1)
-                                            coroutineScope.launch {
-                                                listState.scrollToItem(targetIndex)
-                                            }
-                                        },
-                                        onDragEnd = { },
-                                        onVerticalDrag = { change, dragAmount ->
-                                            change.consume()
-                                            // 根据拖拽量滚动列表
-                                            val itemHeight = if (listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
-                                                listState.layoutInfo.visibleItemsInfo.first().size.toFloat()
-                                            } else {
-                                                100f
-                                            }
-                                            val itemsToScroll = (-dragAmount / itemHeight).toInt()
-                                            if (itemsToScroll != 0) {
-                                                val currentIndex = listState.firstVisibleItemIndex
-                                                val targetIndex = (currentIndex + itemsToScroll).coerceIn(0, totalItems - 1)
-                                                coroutineScope.launch {
-                                                    listState.scrollToItem(targetIndex)
-                                                }
-                                            }
-                                        }
-                                    )
-                                }
-                        ) {
-                            // 滚动条轨道背景
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxHeight()
-                                    .width(4.dp)
-                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
-                                    .align(Alignment.Center)
-                            )
-                            // 滚动条滑块
-                            Box(
-                                modifier = Modifier
-                                    .fillMaxHeight(thumbHeightFraction)
-                                    .width(8.dp)
-                                    .background(
-                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.8f),
-                                        shape = RoundedCornerShape(4.dp)
-                                    )
-                                    .align(Alignment.TopCenter)
-                                    .graphicsLayer {
-                                        // 滑块位置 = 滚动比例 * (容器高度 - 滑块高度)
-                                        translationY = scrollFraction * (size.height * (1f - thumbHeightFraction))
-                                    }
-                            )
-                        }
-                    }
-
-                    // 返回顶部按钮
+                    // 返回顶部按钮（左下角）
                     if (filteredChapters.size > 10) {
                         FloatingActionButton(
                             onClick = {
@@ -683,7 +614,7 @@ fun TOCDialog(
                                 }
                             },
                             modifier = Modifier
-                                .align(Alignment.BottomEnd)
+                                .align(Alignment.BottomStart)
                                 .padding(8.dp)
                                 .size(40.dp),
                             containerColor = MaterialTheme.colorScheme.primaryContainer
