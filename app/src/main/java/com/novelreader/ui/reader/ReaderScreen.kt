@@ -90,18 +90,20 @@ fun ReaderScreen(
                 )
             }
 
-            // 正文内容
-            Text(
-                text = currentContent,
-                fontSize = settings.fontSize.sp,
-                lineHeight = (settings.fontSize * settings.lineHeight).sp,
-                letterSpacing = settings.letterSpacing.sp,
-                color = Color(settings.textColor),
-                modifier = Modifier
-                    .fillMaxSize()
-                    .verticalScroll(rememberScrollState())
-                    .padding(16.dp)
-            )
+            // 正文内容 - 使用key强制章节切换时重置滚动位置
+            key(currentChapterIndex) {
+                Text(
+                    text = currentContent,
+                    fontSize = settings.fontSize.sp,
+                    lineHeight = (settings.fontSize * settings.lineHeight).sp,
+                    letterSpacing = settings.letterSpacing.sp,
+                    color = Color(settings.textColor),
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(16.dp)
+                )
+            }
         }
 
         // 顶部菜单栏
