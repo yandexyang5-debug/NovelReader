@@ -701,14 +701,6 @@ fun TOCDialog(
                     Spacer(modifier = Modifier.width(1.dp))
                 }
 
-                // 当前进度
-                Text(
-                    text = "${currentIndex + 1}/${filteredChapters.size}",
-                    modifier = Modifier.align(Alignment.CenterVertically),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    fontSize = 14.sp
-                )
-
                 // 关闭按钮（右侧）
                 TextButton(onClick = onDismiss) {
                     Text("关闭")
