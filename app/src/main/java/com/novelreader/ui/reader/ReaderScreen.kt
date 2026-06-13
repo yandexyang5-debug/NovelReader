@@ -63,6 +63,7 @@ fun ReaderScreen(
     val isSearchVisible by viewModel.isSearchVisible.collectAsState()
     val isSettingsVisible by viewModel.isSettingsVisible.collectAsState()
     val lastReadPosition by viewModel.lastReadPosition.collectAsState()
+    val scrollToParagraph by viewModel.scrollToParagraph.collectAsState()
 
     // 加载书籍
     LaunchedEffect(bookId) {
@@ -123,9 +124,17 @@ fun ReaderScreen(
                         // 上下滚屏模式
                         val listState = rememberLazyListState()
 
+                        // 搜索跳转到指定段落
+                        LaunchedEffect(scrollToParagraph) {
+                            if (scrollToParagraph >= 0) {
+                                listState.scrollToItem(scrollToParagraph)
+                                viewModel.clearScrollToParagraph()
+                            }
+                        }
+
                         // 恢复滚动位置
                         LaunchedEffect(currentChapterIndex, lastReadPosition) {
-                            if (lastReadPosition > 0) {
+                            if (lastReadPosition > 0 && scrollToParagraph < 0) {
                                 listState.scrollToItem(lastReadPosition)
                             }
                         }
@@ -470,8 +479,8 @@ fun ReaderScreen(
             chapters = chapters,
             fullContent = viewModel.fullContent,
             onBackClick = { viewModel.hideSearch() },
-            onResultClick = { index ->
-                viewModel.goToChapter(index)
+            onResultClick = { chapterIndex, paragraphIndex ->
+                viewModel.goToChapterAndParagraph(chapterIndex, paragraphIndex)
                 viewModel.hideSearch()
             }
         )

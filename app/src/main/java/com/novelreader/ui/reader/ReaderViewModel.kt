@@ -56,6 +56,10 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val _lastReadPosition = MutableStateFlow(0)
     val lastReadPosition: StateFlow<Int> = _lastReadPosition.asStateFlow()
 
+    // 搜索跳转目标段落（-1表示不需要跳转）
+    private val _scrollToParagraph = MutableStateFlow(-1)
+    val scrollToParagraph: StateFlow<Int> = _scrollToParagraph.asStateFlow()
+
     var fullContent: String = ""
         private set
 
@@ -141,6 +145,26 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             loadChapterContent(chapterList[chapterIndex])
             saveProgress()
         }
+    }
+
+    /**
+     * 跳转到指定章节的指定段落（用于搜索结果跳转）
+     */
+    fun goToChapterAndParagraph(chapterIndex: Int, paragraphIndex: Int) {
+        val chapterList = _chapters.value
+        if (chapterIndex in chapterList.indices) {
+            _scrollToParagraph.value = paragraphIndex
+            _currentChapterIndex.value = chapterIndex
+            loadChapterContent(chapterList[chapterIndex])
+            saveProgress()
+        }
+    }
+
+    /**
+     * 清除段落跳转标记（跳转完成后调用）
+     */
+    fun clearScrollToParagraph() {
+        _scrollToParagraph.value = -1
     }
 
     fun goToNextChapter() {

@@ -42,7 +42,7 @@ fun SearchScreen(
     chapters: List<com.novelreader.data.model.Chapter>,
     fullContent: String,
     onBackClick: () -> Unit,
-    onResultClick: (Int) -> Unit
+    onResultClick: (chapterIndex: Int, paragraphIndex: Int) -> Unit
 ) {
     var query by remember { mutableStateOf("") }
     var searchMode by remember { mutableStateOf(SearchMode.EXACT) }
@@ -239,7 +239,7 @@ fun SearchScreen(
                             // 找到章节索引
                             val chapterIndex = chapters.indexOfFirst { it.title == result.chapterTitle }
                             if (chapterIndex >= 0) {
-                                onResultClick(chapterIndex)
+                                onResultClick(chapterIndex, result.paragraphIndex)
                             }
                         }
                     )
