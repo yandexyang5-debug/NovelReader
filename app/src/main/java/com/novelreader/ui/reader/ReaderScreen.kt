@@ -119,9 +119,12 @@ fun ReaderScreen(
                             }
                         }
 
-                        // 监听滚动位置变化，保存当前阅读位置
-                        LaunchedEffect(listState.firstVisibleItemIndex) {
-                            viewModel.updateReadPosition(listState.firstVisibleItemIndex)
+                        // 使用 snapshotFlow 监听滚动，防抖保存
+                        LaunchedEffect(listState) {
+                            snapshotFlow { listState.firstVisibleItemIndex }
+                                .collect { index ->
+                                    viewModel.updateReadPosition(index)
+                                }
                         }
 
                         LazyColumn(
@@ -130,7 +133,10 @@ fun ReaderScreen(
                                 .fillMaxSize()
                                 .padding(16.dp)
                         ) {
-                            itemsIndexed(paragraphs) { index, paragraph ->
+                            itemsIndexed(
+                                items = paragraphs,
+                                key = { index, _ -> index }
+                            ) { _, paragraph ->
                                 Text(
                                     text = paragraph,
                                     fontSize = settings.fontSize.sp,

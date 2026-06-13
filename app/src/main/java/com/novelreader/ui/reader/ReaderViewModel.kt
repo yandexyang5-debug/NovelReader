@@ -209,10 +209,24 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     /**
-     * 更新章节内阅读位置
+     * 更新章节内阅读位置（防抖，避免频繁写入）
      */
+    private var lastSaveTime = 0L
     fun updateReadPosition(position: Int) {
         _lastReadPosition.value = position
+        // 防抖：至少间隔1秒才保存一次
+        val currentTime = System.currentTimeMillis()
+        if (currentTime - lastSaveTime > 1000) {
+            lastSaveTime = currentTime
+            saveProgress()
+        }
+    }
+
+    /**
+     * 强制保存阅读位置（退出时调用）
+     */
+    fun forceSavePosition() {
+        lastSaveTime = System.currentTimeMillis()
         saveProgress()
     }
 
@@ -242,6 +256,6 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     override fun onCleared() {
         super.onCleared()
-        saveProgress()
+        forceSavePosition()
     }
 }
