@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -32,11 +33,13 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.viewmodel.compose.viewModel
+import com.novelreader.data.model.PageMode
 import com.novelreader.data.model.ReadingSettings
 import com.novelreader.ui.search.SearchScreen
 import kotlinx.coroutines.launch
@@ -98,28 +101,180 @@ fun ReaderScreen(
                 )
             }
 
-            // 正文内容 - 使用LazyColumn虚拟化滚动，避免长文本渲染问题
+            // 正文内容 - 根据翻页方式显示
             key(currentChapterIndex) {
                 val paragraphs = remember(currentContent) {
                     currentContent.split("\n").filter { it.isNotBlank() }
                 }
-                val listState = rememberLazyListState()
 
-                LazyColumn(
-                    state = listState,
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .padding(16.dp)
-                ) {
-                    items(paragraphs) { paragraph ->
-                        Text(
-                            text = paragraph,
-                            fontSize = settings.fontSize.sp,
-                            lineHeight = (settings.fontSize * settings.lineHeight).sp,
-                            letterSpacing = settings.letterSpacing.sp,
-                            color = Color(settings.textColor),
-                            modifier = Modifier.padding(bottom = settings.paragraphSpacing.dp)
-                        )
+                when (settings.pageMode) {
+                    PageMode.VERTICAL_SCROLL -> {
+                        // 上下滚屏模式
+                        val listState = rememberLazyListState()
+                        LazyColumn(
+                            state = listState,
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .padding(16.dp)
+                        ) {
+                            items(paragraphs) { paragraph ->
+                                Text(
+                                    text = paragraph,
+                                    fontSize = settings.fontSize.sp,
+                                    lineHeight = (settings.fontSize * settings.lineHeight).sp,
+                                    letterSpacing = settings.letterSpacing.sp,
+                                    color = Color(settings.textColor),
+                                    modifier = Modifier.padding(bottom = settings.paragraphSpacing.dp)
+                                )
+                            }
+                        }
+                    }
+
+                    PageMode.VERTICAL_PAGE -> {
+                        // 上下翻页模式 - 点击上半部分上一页，下半部分下一页
+                        var currentPage by remember { mutableIntStateOf(0) }
+                        val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+                        val lineHeightPx = (settings.fontSize * settings.lineHeight).sp.value
+                        val charHeight = lineHeightPx * 0.6f // 估算每行高度
+                        val linesPerPage = ((screenHeight.value - 100) / (charHeight / LocalConfiguration.current.density)).toInt().coerceAtLeast(1)
+
+                        // 将段落分页
+                        val pages = remember(paragraphs, linesPerPage) {
+                            val result = mutableListOf<List<String>>()
+                            var currentLines = mutableListOf<String>()
+                            for (paragraph in paragraphs) {
+                                val estimatedLines = (paragraph.length / 20 + 1) // 估算段落行数
+                                if (currentLines.size + estimatedLines > linesPerPage && currentLines.isNotEmpty()) {
+                                    result.add(currentLines.toList())
+                                    currentLines = mutableListOf()
+                                }
+                                currentLines.add(paragraph)
+                            }
+                            if (currentLines.isNotEmpty()) {
+                                result.add(currentLines.toList())
+                            }
+                            result
+                        }
+
+                        val displayParagraphs = pages.getOrElse(currentPage) { paragraphs }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .clickable(
+                                    indication = null,
+                                    interactionSource = remember { MutableInteractionSource() }
+                                ) { offset ->
+                                    // 点击上半部分上一页，下半部分下一页
+                                    if (offset.y < LocalConfiguration.current.screenHeightDp / 2) {
+                                        if (currentPage > 0) currentPage--
+                                    } else {
+                                        if (currentPage < pages.size - 1) currentPage++
+                                    }
+                                }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp)
+                            ) {
+                                displayParagraphs.forEach { paragraph ->
+                                    Text(
+                                        text = paragraph,
+                                        fontSize = settings.fontSize.sp,
+                                        lineHeight = (settings.fontSize * settings.lineHeight).sp,
+                                        letterSpacing = settings.letterSpacing.sp,
+                                        color = Color(settings.textColor),
+                                        modifier = Modifier.padding(bottom = settings.paragraphSpacing.dp)
+                                    )
+                                }
+                            }
+
+                            // 页码指示器
+                            Text(
+                                text = "${currentPage + 1}/${pages.size}",
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(8.dp),
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        }
+                    }
+
+                    PageMode.HORIZONTAL_PAGE -> {
+                        // 左右翻页模式
+                        var currentPage by remember { mutableIntStateOf(0) }
+                        val screenHeight = LocalConfiguration.current.screenHeightDp.dp
+                        val lineHeightPx = (settings.fontSize * settings.lineHeight).sp.value
+                        val charHeight = lineHeightPx * 0.6f
+                        val linesPerPage = ((screenHeight.value - 100) / (charHeight / LocalConfiguration.current.density)).toInt().coerceAtLeast(1)
+
+                        val pages = remember(paragraphs, linesPerPage) {
+                            val result = mutableListOf<List<String>>()
+                            var currentLines = mutableListOf<String>()
+                            for (paragraph in paragraphs) {
+                                val estimatedLines = (paragraph.length / 20 + 1)
+                                if (currentLines.size + estimatedLines > linesPerPage && currentLines.isNotEmpty()) {
+                                    result.add(currentLines.toList())
+                                    currentLines = mutableListOf()
+                                }
+                                currentLines.add(paragraph)
+                            }
+                            if (currentLines.isNotEmpty()) {
+                                result.add(currentLines.toList())
+                            }
+                            result
+                        }
+
+                        val displayParagraphs = pages.getOrElse(currentPage) { paragraphs }
+
+                        Box(
+                            modifier = Modifier
+                                .fillMaxSize()
+                                .pointerInput(Unit) {
+                                    detectHorizontalDragGestures(
+                                        onDragEnd = { },
+                                        onHorizontalDrag = { change, dragAmount ->
+                                            change.consume()
+                                            if (dragAmount < -50) {
+                                                // 向左滑动，下一页
+                                                if (currentPage < pages.size - 1) currentPage++
+                                            } else if (dragAmount > 50) {
+                                                // 向右滑动，上一页
+                                                if (currentPage > 0) currentPage--
+                                            }
+                                        }
+                                    )
+                                }
+                        ) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .padding(16.dp)
+                            ) {
+                                displayParagraphs.forEach { paragraph ->
+                                    Text(
+                                        text = paragraph,
+                                        fontSize = settings.fontSize.sp,
+                                        lineHeight = (settings.fontSize * settings.lineHeight).sp,
+                                        letterSpacing = settings.letterSpacing.sp,
+                                        color = Color(settings.textColor),
+                                        modifier = Modifier.padding(bottom = settings.paragraphSpacing.dp)
+                                    )
+                                }
+                            }
+
+                            // 页码指示器
+                            Text(
+                                text = "${currentPage + 1}/${pages.size}",
+                                modifier = Modifier
+                                    .align(Alignment.BottomCenter)
+                                    .padding(8.dp),
+                                color = Color.Gray,
+                                fontSize = 12.sp
+                            )
+                        }
                     }
                 }
             }
@@ -680,6 +835,26 @@ fun SettingsDialog(
                         }
                     ) {
                         Icon(Icons.Default.Add, contentDescription = "增大")
+                    }
+                }
+
+                Spacer(modifier = Modifier.height(16.dp))
+
+                // 翻页方式
+                Text("翻页方式")
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    PageMode.entries.forEach { mode ->
+                        FilterChip(
+                            selected = settings.pageMode == mode,
+                            onClick = {
+                                onSettingsChange(settings.copy(pageMode = mode))
+                            },
+                            label = { Text(mode.displayName) },
+                            modifier = Modifier.weight(1f)
+                        )
                     }
                 }
 

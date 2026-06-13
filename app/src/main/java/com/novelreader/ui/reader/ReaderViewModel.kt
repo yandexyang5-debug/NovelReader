@@ -8,6 +8,7 @@ import androidx.lifecycle.viewModelScope
 import com.novelreader.data.local.NovelDatabase
 import com.novelreader.data.model.Book
 import com.novelreader.data.model.Chapter
+import com.novelreader.data.model.PageMode
 import com.novelreader.data.model.ReadingSettings
 import com.novelreader.data.repository.BookRepository
 import com.novelreader.util.ChapterParser
@@ -58,6 +59,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
      * 从SharedPreferences加载阅读设置
      */
     private fun loadSettings(): ReadingSettings {
+        val pageModeOrdinal = prefs.getInt("pageMode", 0)
+        val pageMode = PageMode.entries.getOrElse(pageModeOrdinal) { PageMode.VERTICAL_SCROLL }
+
         return ReadingSettings(
             fontSize = prefs.getFloat("fontSize", 18f),
             lineHeight = prefs.getFloat("lineHeight", 1.8f),
@@ -65,7 +69,8 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             paragraphSpacing = prefs.getFloat("paragraphSpacing", 12f),
             backgroundColor = prefs.getLong("backgroundColor", 0xFFFFFFFF),
             textColor = prefs.getLong("textColor", 0xFF333333),
-            isNightMode = prefs.getBoolean("isNightMode", false)
+            isNightMode = prefs.getBoolean("isNightMode", false),
+            pageMode = pageMode
         )
     }
 
@@ -81,6 +86,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             putLong("backgroundColor", settings.backgroundColor)
             putLong("textColor", settings.textColor)
             putBoolean("isNightMode", settings.isNightMode)
+            putInt("pageMode", settings.pageMode.ordinal)
             apply()
         }
     }

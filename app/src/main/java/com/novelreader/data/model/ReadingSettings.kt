@@ -1,5 +1,12 @@
 package com.novelreader.data.model
 
+// 翻页方式枚举
+enum class PageMode(val displayName: String) {
+    VERTICAL_SCROLL("上下滚屏"),    // 当前的滚动模式
+    VERTICAL_PAGE("上下翻页"),      // 点击翻页
+    HORIZONTAL_PAGE("左右翻页")     // 滑动翻页
+}
+
 data class ReadingSettings(
     val fontSize: Float = 18f,
     val lineHeight: Float = 1.8f,
@@ -7,7 +14,8 @@ data class ReadingSettings(
     val paragraphSpacing: Float = 12f,
     val backgroundColor: Long = 0xFFFFFFFF,
     val textColor: Long = 0xFF333333,
-    val isNightMode: Boolean = false
+    val isNightMode: Boolean = false,
+    val pageMode: PageMode = PageMode.VERTICAL_SCROLL
 ) {
     companion object {
         // 背景颜色选项
