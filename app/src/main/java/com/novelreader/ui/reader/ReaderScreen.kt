@@ -407,42 +407,57 @@ fun TOCDialog(
                     // 可拖拽滚动条
                     if (listState.layoutInfo.totalItemsCount > 1) {
                         val totalItems = listState.layoutInfo.totalItemsCount
-                        var isDragging by remember { mutableStateOf(false) }
-                        var dragValue by remember { mutableFloatStateOf(0f) }
+                        val viewportHeight = listState.layoutInfo.viewportEndOffset - listState.layoutInfo.viewportStartOffset
 
-                        // 计算当前滚动位置
-                        val currentScrollFraction = if (isDragging) {
-                            dragValue
-                        } else {
-                            val firstVisible = listState.firstVisibleItemIndex
-                            val firstVisibleOffset = listState.firstVisibleItemScrollOffset
-                            val itemHeight = if (listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
-                                listState.layoutInfo.visibleItemsInfo.first().size.toFloat()
-                            } else {
-                                100f
+                        // 计算滚动比例
+                        val scrollFraction = remember(listState.firstVisibleItemIndex, listState.firstVisibleItemScrollOffset, totalItems) {
+                            if (totalItems <= 1) 0f
+                            else {
+                                val firstVisible = listState.firstVisibleItemIndex
+                                val firstVisibleOffset = listState.firstVisibleItemScrollOffset
+                                val itemHeight = if (listState.layoutInfo.visibleItemsInfo.isNotEmpty()) {
+                                    listState.layoutInfo.visibleItemsInfo.first().size.toFloat()
+                                } else {
+                                    100f
+                                }
+                                val scrollPosition = firstVisible + firstVisibleOffset / itemHeight
+                                (scrollPosition / (totalItems - 1)).coerceIn(0f, 1f)
                             }
-                            (firstVisible + firstVisibleOffset / itemHeight) / (totalItems - 1).coerceAtLeast(1)
                         }
 
-                        // 垂直可拖拽滚动条
+                        // 滚动条高度比例（可见区域占总内容的比例）
+                        val thumbHeightFraction = remember(totalItems, listState.layoutInfo.visibleItemsInfo.size) {
+                            val visibleCount = listState.layoutInfo.visibleItemsInfo.size
+                            (visibleCount.toFloat() / totalItems).coerceIn(0.1f, 1f)
+                        }
+
+                        // 滑块可用移动范围
+                        val thumbTrackFraction = 1f - thumbHeightFraction
+
                         Box(
                             modifier = Modifier
                                 .fillMaxHeight()
                                 .width(24.dp)
                                 .align(Alignment.CenterEnd)
-                                .pointerInput(totalItems) {
+                                .pointerInput(totalItems, thumbTrackFraction) {
                                     detectVerticalDragGestures(
                                         onDragStart = { offset ->
-                                            isDragging = true
-                                            dragValue = (offset.y / size.height).coerceIn(0f, 1f)
+                                            // 根据触摸位置计算目标滚动位置
+                                            val touchFraction = (offset.y / size.height).coerceIn(0f, 1f)
+                                            val targetScrollFraction = (touchFraction / thumbTrackFraction).coerceIn(0f, 1f)
+                                            val targetIndex = (targetScrollFraction * (totalItems - 1)).toInt().coerceIn(0, totalItems - 1)
+                                            coroutineScope.launch {
+                                                listState.scrollToItem(targetIndex)
+                                            }
                                         },
-                                        onDragEnd = {
-                                            isDragging = false
-                                        },
+                                        onDragEnd = { },
                                         onVerticalDrag = { change, dragAmount ->
                                             change.consume()
-                                            dragValue = (dragValue + dragAmount / size.height).coerceIn(0f, 1f)
-                                            val targetIndex = (dragValue * (totalItems - 1)).toInt().coerceIn(0, totalItems - 1)
+                                            // 根据拖拽量计算目标位置
+                                            val dragFraction = dragAmount / size.height
+                                            val currentFraction = scrollFraction
+                                            val newFraction = (currentFraction + dragFraction / thumbTrackFraction).coerceIn(0f, 1f)
+                                            val targetIndex = (newFraction * (totalItems - 1)).toInt().coerceIn(0, totalItems - 1)
                                             coroutineScope.launch {
                                                 listState.scrollToItem(targetIndex)
                                             }
@@ -450,29 +465,27 @@ fun TOCDialog(
                                     )
                                 }
                         ) {
-                            // 滚动条背景
+                            // 滚动条轨道背景
                             Box(
                                 modifier = Modifier
                                     .fillMaxHeight()
                                     .width(4.dp)
-                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f))
+                                    .background(MaterialTheme.colorScheme.onSurface.copy(alpha = 0.1f), RoundedCornerShape(2.dp))
                                     .align(Alignment.Center)
                             )
                             // 滚动条滑块
                             Box(
                                 modifier = Modifier
-                                    .fillMaxHeight(0.15f.coerceAtMost(1f))
+                                    .fillMaxHeight(thumbHeightFraction)
                                     .width(8.dp)
                                     .background(
-                                        if (isDragging)
-                                            MaterialTheme.colorScheme.primary
-                                        else
-                                            MaterialTheme.colorScheme.primary.copy(alpha = 0.6f),
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.7f),
                                         shape = RoundedCornerShape(4.dp)
                                     )
-                                    .align(Alignment.Center)
+                                    .align(Alignment.TopCenter)
                                     .graphicsLayer {
-                                        translationY = (size.height * 2.5f) * (currentScrollFraction - 0.5f)
+                                        // 滑块位置 = 滚动比例 * 可用轨道高度
+                                        translationY = scrollFraction * thumbTrackFraction * size.height * (1f / thumbHeightFraction - 1f)
                                     }
                             )
                         }
