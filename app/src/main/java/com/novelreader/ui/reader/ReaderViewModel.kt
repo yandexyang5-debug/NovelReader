@@ -52,6 +52,10 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val _isSettingsVisible = MutableStateFlow(false)
     val isSettingsVisible: StateFlow<Boolean> = _isSettingsVisible.asStateFlow()
 
+    // 章节内阅读位置（页码或段落索引）
+    private val _lastReadPosition = MutableStateFlow(0)
+    val lastReadPosition: StateFlow<Int> = _lastReadPosition.asStateFlow()
+
     var fullContent: String = ""
         private set
 
@@ -105,6 +109,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
                     val lastIndex = book.lastChapterIndex
                     if (lastIndex in chapterList.indices) {
                         _currentChapterIndex.value = lastIndex
+                        _lastReadPosition.value = book.lastParagraphIndex
                         loadChapterContent(chapterList[lastIndex])
                     }
                 }
@@ -203,6 +208,14 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
         }
     }
 
+    /**
+     * 更新章节内阅读位置
+     */
+    fun updateReadPosition(position: Int) {
+        _lastReadPosition.value = position
+        saveProgress()
+    }
+
     fun toggleNightMode() {
         val current = _settings.value
         val newSettings = current.copy(
@@ -220,6 +233,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
             repository.updateBook(
                 book.copy(
                     lastChapterIndex = _currentChapterIndex.value,
+                    lastParagraphIndex = _lastReadPosition.value,
                     lastReadAt = System.currentTimeMillis()
                 )
             )

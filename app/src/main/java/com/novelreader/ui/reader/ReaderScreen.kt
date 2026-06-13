@@ -60,6 +60,7 @@ fun ReaderScreen(
     val isTOCVisible by viewModel.isTOCVisible.collectAsState()
     val isSearchVisible by viewModel.isSearchVisible.collectAsState()
     val isSettingsVisible by viewModel.isSettingsVisible.collectAsState()
+    val lastReadPosition by viewModel.lastReadPosition.collectAsState()
 
     // 加载书籍
     LaunchedEffect(bookId) {
@@ -111,6 +112,19 @@ fun ReaderScreen(
                     PageMode.VERTICAL_SCROLL -> {
                         // 上下滚屏模式
                         val listState = rememberLazyListState()
+
+                        // 恢复滚动位置
+                        LaunchedEffect(currentChapterIndex, lastReadPosition) {
+                            if (lastReadPosition > 0) {
+                                listState.scrollToItem(lastReadPosition)
+                            }
+                        }
+
+                        // 监听滚动位置变化，保存当前阅读位置
+                        LaunchedEffect(listState.firstVisibleItemIndex) {
+                            viewModel.updateReadPosition(listState.firstVisibleItemIndex)
+                        }
+
                         LazyColumn(
                             state = listState,
                             modifier = Modifier
@@ -132,7 +146,7 @@ fun ReaderScreen(
 
                     PageMode.VERTICAL_PAGE -> {
                         // 上下翻页模式 - 点击上半部分上一页，下半部分下一页
-                        var currentPage by remember { mutableIntStateOf(0) }
+                        var currentPage by remember { mutableIntStateOf(lastReadPosition) }
                         val screenHeight = LocalConfiguration.current.screenHeightDp.dp
                         val lineHeightPx = (settings.fontSize * settings.lineHeight).sp.value
                         val charHeight = lineHeightPx * 0.6f // 估算每行高度
@@ -156,6 +170,13 @@ fun ReaderScreen(
                             result
                         }
 
+                        // 确保页码在有效范围内
+                        LaunchedEffect(pages.size) {
+                            if (currentPage >= pages.size) {
+                                currentPage = (pages.size - 1).coerceAtLeast(0)
+                            }
+                        }
+
                         val displayParagraphs = pages.getOrElse(currentPage) { paragraphs }
 
                         Box(
@@ -167,9 +188,15 @@ fun ReaderScreen(
                                 ) { offset ->
                                     // 点击上半部分上一页，下半部分下一页
                                     if (offset.y < LocalConfiguration.current.screenHeightDp / 2) {
-                                        if (currentPage > 0) currentPage--
+                                        if (currentPage > 0) {
+                                            currentPage--
+                                            viewModel.updateReadPosition(currentPage)
+                                        }
                                     } else {
-                                        if (currentPage < pages.size - 1) currentPage++
+                                        if (currentPage < pages.size - 1) {
+                                            currentPage++
+                                            viewModel.updateReadPosition(currentPage)
+                                        }
                                     }
                                 }
                         ) {
@@ -204,7 +231,7 @@ fun ReaderScreen(
 
                     PageMode.HORIZONTAL_PAGE -> {
                         // 左右翻页模式
-                        var currentPage by remember { mutableIntStateOf(0) }
+                        var currentPage by remember { mutableIntStateOf(lastReadPosition) }
                         val screenHeight = LocalConfiguration.current.screenHeightDp.dp
                         val lineHeightPx = (settings.fontSize * settings.lineHeight).sp.value
                         val charHeight = lineHeightPx * 0.6f
@@ -227,6 +254,13 @@ fun ReaderScreen(
                             result
                         }
 
+                        // 确保页码在有效范围内
+                        LaunchedEffect(pages.size) {
+                            if (currentPage >= pages.size) {
+                                currentPage = (pages.size - 1).coerceAtLeast(0)
+                            }
+                        }
+
                         val displayParagraphs = pages.getOrElse(currentPage) { paragraphs }
 
                         Box(
@@ -239,10 +273,16 @@ fun ReaderScreen(
                                             change.consume()
                                             if (dragAmount < -50) {
                                                 // 向左滑动，下一页
-                                                if (currentPage < pages.size - 1) currentPage++
+                                                if (currentPage < pages.size - 1) {
+                                                    currentPage++
+                                                    viewModel.updateReadPosition(currentPage)
+                                                }
                                             } else if (dragAmount > 50) {
                                                 // 向右滑动，上一页
-                                                if (currentPage > 0) currentPage--
+                                                if (currentPage > 0) {
+                                                    currentPage--
+                                                    viewModel.updateReadPosition(currentPage)
+                                                }
                                             }
                                         }
                                     )
