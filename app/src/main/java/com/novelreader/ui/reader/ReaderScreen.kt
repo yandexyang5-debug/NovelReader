@@ -522,8 +522,10 @@ fun SettingsDialog(
                 // 字体大小
                 Text("字体大小: ${settings.fontSize.toInt()}sp")
                 Slider(
-                    value = settings.fontSize,
-                    onValueChange = { onSettingsChange(settings.copy(fontSize = it)) },
+                    value = settings.fontSize.coerceIn(12f, 36f),
+                    onValueChange = { value ->
+                        onSettingsChange(settings.copy(fontSize = value.coerceIn(12f, 36f)))
+                    },
                     valueRange = 12f..36f,
                     steps = 23
                 )
@@ -533,8 +535,10 @@ fun SettingsDialog(
                 // 行间距
                 Text("行间距: ${String.format("%.1f", settings.lineHeight)}")
                 Slider(
-                    value = settings.lineHeight,
-                    onValueChange = { onSettingsChange(settings.copy(lineHeight = it)) },
+                    value = settings.lineHeight.coerceIn(1.0f, 4.0f),
+                    onValueChange = { value ->
+                        onSettingsChange(settings.copy(lineHeight = value.coerceIn(1.0f, 4.0f)))
+                    },
                     valueRange = 1.0f..4.0f,
                     steps = 29
                 )
@@ -544,8 +548,10 @@ fun SettingsDialog(
                 // 字间距
                 Text("字间距: ${String.format("%.1f", settings.letterSpacing)}sp")
                 Slider(
-                    value = settings.letterSpacing,
-                    onValueChange = { onSettingsChange(settings.copy(letterSpacing = it)) },
+                    value = settings.letterSpacing.coerceIn(0f, 5f),
+                    onValueChange = { value ->
+                        onSettingsChange(settings.copy(letterSpacing = value.coerceIn(0f, 5f)))
+                    },
                     valueRange = 0f..5f,
                     steps = 9
                 )
@@ -555,8 +561,10 @@ fun SettingsDialog(
                 // 段间距
                 Text("段间距: ${String.format("%.1f", settings.paragraphSpacing / 12)}")
                 Slider(
-                    value = settings.paragraphSpacing,
-                    onValueChange = { onSettingsChange(settings.copy(paragraphSpacing = it)) },
+                    value = settings.paragraphSpacing.coerceIn(0f, 24f),
+                    onValueChange = { value ->
+                        onSettingsChange(settings.copy(paragraphSpacing = value.coerceIn(0f, 24f)))
+                    },
                     valueRange = 0f..24f,
                     steps = 11
                 )

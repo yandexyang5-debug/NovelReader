@@ -182,8 +182,19 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     }
 
     fun updateSettings(newSettings: ReadingSettings) {
+        val oldSettings = _settings.value
         _settings.value = newSettings
-        saveSettings(newSettings)
+        // 只有设置真正改变时才保存
+        if (oldSettings.fontSize != newSettings.fontSize ||
+            oldSettings.lineHeight != newSettings.lineHeight ||
+            oldSettings.letterSpacing != newSettings.letterSpacing ||
+            oldSettings.paragraphSpacing != newSettings.paragraphSpacing ||
+            oldSettings.backgroundColor != newSettings.backgroundColor ||
+            oldSettings.textColor != newSettings.textColor ||
+            oldSettings.isNightMode != newSettings.isNightMode
+        ) {
+            saveSettings(newSettings)
+        }
     }
 
     fun toggleNightMode() {
