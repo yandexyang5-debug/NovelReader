@@ -77,6 +77,17 @@ class BookViewModel(application: Application) : AndroidViewModel(application) {
         }
     }
 
+    fun updateBook(book: Book, newTitle: String, newAuthor: String) {
+        viewModelScope.launch {
+            repository.updateBook(
+                book.copy(
+                    title = newTitle.trim(),
+                    author = newAuthor.trim()
+                )
+            )
+        }
+    }
+
     fun clearImportResult() {
         _importResult.value = null
     }

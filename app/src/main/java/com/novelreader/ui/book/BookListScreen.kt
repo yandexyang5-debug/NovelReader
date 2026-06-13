@@ -42,6 +42,9 @@ fun BookListScreen(
 
     var isEditMode by remember { mutableStateOf(false) }
     var showDeleteDialog by remember { mutableStateOf<Book?>(null) }
+    var showEditDialog by remember { mutableStateOf<Book?>(null) }
+    var editTitle by remember { mutableStateOf("") }
+    var editAuthor by remember { mutableStateOf("") }
 
     // 文件选择器
     val filePickerLauncher = rememberLauncherForActivityResult(
@@ -148,7 +151,10 @@ fun BookListScreen(
                         book = book,
                         onClick = {
                             if (isEditMode) {
-                                showDeleteDialog = book
+                                // 编辑模式下点击弹出编辑对话框
+                                editTitle = book.displayTitle
+                                editAuthor = book.displayAuthor
+                                showEditDialog = book
                             } else {
                                 onBookClick(book.id)
                             }
@@ -179,6 +185,48 @@ fun BookListScreen(
             },
             dismissButton = {
                 TextButton(onClick = { showDeleteDialog = null }) {
+                    Text("取消")
+                }
+            }
+        )
+    }
+
+    // 编辑书籍信息对话框
+    showEditDialog?.let { book ->
+        AlertDialog(
+            onDismissRequest = { showEditDialog = null },
+            title = { Text("编辑书籍信息") },
+            text = {
+                Column {
+                    OutlinedTextField(
+                        value = editTitle,
+                        onValueChange = { editTitle = it },
+                        label = { Text("书名") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                    Spacer(modifier = Modifier.height(12.dp))
+                    OutlinedTextField(
+                        value = editAuthor,
+                        onValueChange = { editAuthor = it },
+                        label = { Text("作者") },
+                        modifier = Modifier.fillMaxWidth(),
+                        singleLine = true
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        viewModel.updateBook(book, editTitle, editAuthor)
+                        showEditDialog = null
+                    }
+                ) {
+                    Text("保存")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showEditDialog = null }) {
                     Text("取消")
                 }
             }
