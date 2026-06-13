@@ -184,35 +184,10 @@ fun ReaderScreen(
                         val displayParagraphs = pages.getOrElse(currentPage) { paragraphs }
 
                         Box(modifier = Modifier.fillMaxSize()) {
-                            // 内容区域 - 支持滑动和点击翻页
+                            // 内容区域
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
-                                    .pointerInput(Unit) {
-                                        detectHorizontalDragGestures(
-                                            onDragEnd = { },
-                                            onHorizontalDrag = { change, dragAmount ->
-                                                change.consume()
-                                                if (dragAmount < -50) {
-                                                    if (currentPage < pages.size - 1) {
-                                                        currentPage++
-                                                        viewModel.updateReadPosition(currentPage)
-                                                    }
-                                                } else if (dragAmount > 50) {
-                                                    if (currentPage > 0) {
-                                                        currentPage--
-                                                        viewModel.updateReadPosition(currentPage)
-                                                    }
-                                                }
-                                            }
-                                        )
-                                    }
-                                    .clickable(
-                                        indication = null,
-                                        interactionSource = remember { MutableInteractionSource() }
-                                    ) {
-                                        // 点击由外层Box的pointerInput处理
-                                    }
                                     .padding(16.dp)
                             ) {
                                 displayParagraphs.forEach { paragraph ->
@@ -227,8 +202,8 @@ fun ReaderScreen(
                                 }
                             }
 
-                            // 透明覆盖层 - 处理点击区域
-                            Row(
+                            // 透明手势覆盖层 - 滑动不受区域限制，点击区分区域
+                            Box(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .pointerInput(Unit) {
@@ -258,9 +233,28 @@ fun ReaderScreen(
                                             }
                                         }
                                     }
-                            ) {
-                                // 透明区域，仅用于捕获点击事件
-                            }
+                                    .pointerInput(Unit) {
+                                        detectHorizontalDragGestures(
+                                            onDragEnd = { },
+                                            onHorizontalDrag = { change, dragAmount ->
+                                                change.consume()
+                                                if (dragAmount < -50) {
+                                                    // 向左滑动：下一页
+                                                    if (currentPage < pages.size - 1) {
+                                                        currentPage++
+                                                        viewModel.updateReadPosition(currentPage)
+                                                    }
+                                                } else if (dragAmount > 50) {
+                                                    // 向右滑动：上一页
+                                                    if (currentPage > 0) {
+                                                        currentPage--
+                                                        viewModel.updateReadPosition(currentPage)
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                            )
 
                             // 页码指示器
                             Text(
