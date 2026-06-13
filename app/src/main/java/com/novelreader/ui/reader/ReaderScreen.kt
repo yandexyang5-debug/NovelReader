@@ -1,6 +1,8 @@
 package com.novelreader.ui.reader
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInVertically
@@ -161,6 +163,7 @@ fun ReaderScreen(
                     PageMode.HORIZONTAL_PAGE -> {
                         // 左右翻页模式
                         var currentPage by remember { mutableStateOf(lastReadPosition) }
+                        var offsetX by remember { mutableFloatStateOf(0f) }
 
                         // 计算每页显示的段落数
                         val itemsPerPage = remember(settings.fontSize, settings.lineHeight) {
@@ -183,11 +186,21 @@ fun ReaderScreen(
 
                         val displayParagraphs = pages.getOrElse(currentPage) { paragraphs }
 
+                        // 翻页动画
+                        val animatedOffsetX by animateFloatAsState(
+                            targetValue = offsetX,
+                            animationSpec = tween(durationMillis = 200),
+                            label = "pageOffset"
+                        )
+
                         Box(modifier = Modifier.fillMaxSize()) {
-                            // 内容区域
+                            // 内容区域 - 带滑动偏移动画
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .graphicsLayer {
+                                        translationX = animatedOffsetX
+                                    }
                                     .padding(16.dp)
                             ) {
                                 displayParagraphs.forEach { paragraph ->
@@ -202,7 +215,7 @@ fun ReaderScreen(
                                 }
                             }
 
-                            // 透明手势覆盖层 - 滑动不受区域限制，点击区分区域
+                            // 透明手势覆盖层
                             Box(
                                 modifier = Modifier
                                     .fillMaxSize()
@@ -213,21 +226,18 @@ fun ReaderScreen(
 
                                             when {
                                                 offset.x < thirdWidth -> {
-                                                    // 左侧1/3：上一页
                                                     if (currentPage > 0) {
                                                         currentPage--
                                                         viewModel.updateReadPosition(currentPage)
                                                     }
                                                 }
                                                 offset.x > thirdWidth * 2 -> {
-                                                    // 右侧1/3：下一页
                                                     if (currentPage < pages.size - 1) {
                                                         currentPage++
                                                         viewModel.updateReadPosition(currentPage)
                                                     }
                                                 }
                                                 else -> {
-                                                    // 中间1/3：弹出菜单
                                                     viewModel.toggleMenu()
                                                 }
                                             }
@@ -235,21 +245,31 @@ fun ReaderScreen(
                                     }
                                     .pointerInput(Unit) {
                                         detectHorizontalDragGestures(
-                                            onDragEnd = { },
+                                            onDragEnd = {
+                                                // 滑动结束，重置偏移
+                                                offsetX = 0f
+                                            },
                                             onHorizontalDrag = { change, dragAmount ->
                                                 change.consume()
-                                                if (dragAmount < -50) {
+                                                // 累积滑动距离
+                                                offsetX += dragAmount
+
+                                                // 达到阈值时翻页
+                                                val threshold = size.width / 4
+                                                if (offsetX < -threshold) {
                                                     // 向左滑动：下一页
                                                     if (currentPage < pages.size - 1) {
                                                         currentPage++
                                                         viewModel.updateReadPosition(currentPage)
                                                     }
-                                                } else if (dragAmount > 50) {
+                                                    offsetX = 0f
+                                                } else if (offsetX > threshold) {
                                                     // 向右滑动：上一页
                                                     if (currentPage > 0) {
                                                         currentPage--
                                                         viewModel.updateReadPosition(currentPage)
                                                     }
+                                                    offsetX = 0f
                                                 }
                                             }
                                         )
