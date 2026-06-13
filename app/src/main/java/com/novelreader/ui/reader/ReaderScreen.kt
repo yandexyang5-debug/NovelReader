@@ -117,7 +117,7 @@ fun ReaderScreen(
             modifier = Modifier.align(Alignment.TopCenter)
         ) {
             TopAppBar(
-                title = { Text(book?.displayTitle ?: "") },
+                title = { Text(chapters.getOrNull(currentChapterIndex)?.title ?: book?.displayTitle ?: "") },
                 navigationIcon = {
                     IconButton(onClick = onBackClick) {
                         Icon(
