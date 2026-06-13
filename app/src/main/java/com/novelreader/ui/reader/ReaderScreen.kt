@@ -521,16 +521,38 @@ fun SettingsDialog(
         title = { Text("设置") },
         text = {
             Column {
-                // 字体大小
+                // 字体大小（带加减按钮）
                 Text("字体大小: ${settings.fontSize.toInt()}sp")
-                Slider(
-                    value = settings.fontSize.coerceIn(12f, 36f),
-                    onValueChange = { value ->
-                        onSettingsChange(settings.copy(fontSize = value.coerceIn(12f, 36f)))
-                    },
-                    valueRange = 12f..36f,
-                    steps = 23
-                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically
+                ) {
+                    IconButton(
+                        onClick = {
+                            val newValue = (settings.fontSize - 1f).coerceIn(12f, 36f)
+                            onSettingsChange(settings.copy(fontSize = newValue))
+                        }
+                    ) {
+                        Icon(Icons.Default.Remove, contentDescription = "减小")
+                    }
+                    Slider(
+                        value = settings.fontSize.coerceIn(12f, 36f),
+                        onValueChange = { value ->
+                            onSettingsChange(settings.copy(fontSize = value.coerceIn(12f, 36f)))
+                        },
+                        valueRange = 12f..36f,
+                        steps = 23,
+                        modifier = Modifier.weight(1f)
+                    )
+                    IconButton(
+                        onClick = {
+                            val newValue = (settings.fontSize + 1f).coerceIn(12f, 36f)
+                            onSettingsChange(settings.copy(fontSize = newValue))
+                        }
+                    ) {
+                        Icon(Icons.Default.Add, contentDescription = "增大")
+                    }
+                }
 
                 Spacer(modifier = Modifier.height(16.dp))
 
