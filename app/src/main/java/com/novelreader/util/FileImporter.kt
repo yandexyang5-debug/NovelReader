@@ -6,6 +6,8 @@ import com.novelreader.data.model.Book
 import com.novelreader.data.model.Chapter
 import java.io.File
 import java.io.FileOutputStream
+import java.io.InputStream
+import java.nio.charset.Charset
 
 object FileImporter {
     /**
@@ -20,8 +22,8 @@ object FileImporter {
             val internalFile = copyToInternal(context, uri, fileName)
                 ?: return null
 
-            // 读取文件内容
-            val content = internalFile.readText(Charsets.UTF_8)
+            // 读取文件内容（自动检测编码）
+            val content = readTextWithEncoding(internalFile)
 
             // 提取书名和作者
             val (title, author) = extractMetadata(content, fileName)
@@ -41,6 +43,125 @@ object FileImporter {
             e.printStackTrace()
             null
         }
+    }
+
+    /**
+     * 自动检测编码并读取文本
+     */
+    private fun readTextWithEncoding(file: File): String {
+        val bytes = file.readBytes()
+
+        // 检测BOM（字节顺序标记）
+        val encoding = detectEncoding(bytes)
+
+        return String(bytes, encoding)
+    }
+
+    /**
+     * 检测文件编码
+     */
+    private fun detectEncoding(bytes: ByteArray): Charset {
+        // UTF-8 BOM: EF BB BF
+        if (bytes.size >= 3 &&
+            bytes[0] == 0xEF.toByte() &&
+            bytes[1] == 0xBB.toByte() &&
+            bytes[2] == 0xBF.toByte()
+        ) {
+            return Charsets.UTF_8
+        }
+
+        // UTF-16 LE BOM: FF FE
+        if (bytes.size >= 2 &&
+            bytes[0] == 0xFF.toByte() &&
+            bytes[1] == 0xFE.toByte()
+        ) {
+            return Charsets.UTF_16LE
+        }
+
+        // UTF-16 BE BOM: FE FF
+        if (bytes.size >= 2 &&
+            bytes[0] == 0xFE.toByte() &&
+            bytes[1] == 0xFF.toByte()
+        ) {
+            return Charsets.UTF_16BE
+        }
+
+        // 尝试UTF-8解码，检查是否有效
+        if (isValidUtf8(bytes)) {
+            return Charsets.UTF_8
+        }
+
+        // 默认使用GBK（中文系统常见编码）
+        return Charset.forName("GBK")
+    }
+
+    /**
+     * 检查是否是有效的UTF-8编码
+     */
+    private fun isValidUtf8(bytes: ByteArray): Boolean {
+        var i = 0
+        var totalBytes = 0
+        var validBytes = 0
+
+        while (i < bytes.size) {
+            val b = bytes[i].toInt() and 0xFF
+
+            when {
+                // 单字节 (0xxxxxxx)
+                b <= 0x7F -> {
+                    totalBytes++
+                    validBytes++
+                    i++
+                }
+                // 双字节 (110xxxxx 10xxxxxx)
+                b in 0xC0..0xDF -> {
+                    if (i + 1 >= bytes.size) return false
+                    val b2 = bytes[i + 1].toInt() and 0xFF
+                    if (b2 in 0x80..0xBF) {
+                        totalBytes += 2
+                        validBytes += 2
+                        i += 2
+                    } else {
+                        return false
+                    }
+                }
+                // 三字节 (1110xxxx 10xxxxxx 10xxxxxx) - 中文常用
+                b in 0xE0..0xEF -> {
+                    if (i + 2 >= bytes.size) return false
+                    val b2 = bytes[i + 1].toInt() and 0xFF
+                    val b3 = bytes[i + 2].toInt() and 0xFF
+                    if (b2 in 0x80..0xBF && b3 in 0x80..0xBF) {
+                        totalBytes += 3
+                        validBytes += 3
+                        i += 3
+                    } else {
+                        return false
+                    }
+                }
+                // 四字节 (11110xxx 10xxxxxx 10xxxxxx 10xxxxxx)
+                b in 0xF0..0xF7 -> {
+                    if (i + 3 >= bytes.size) return false
+                    val b2 = bytes[i + 1].toInt() and 0xFF
+                    val b3 = bytes[i + 2].toInt() and 0xFF
+                    val b4 = bytes[i + 3].toInt() and 0xFF
+                    if (b2 in 0x80..0xBF && b3 in 0x80..0xBF && b4 in 0x80..0xBF) {
+                        totalBytes += 4
+                        validBytes += 4
+                        i += 4
+                    } else {
+                        return false
+                    }
+                }
+                else -> {
+                    // 无效的UTF-8字节
+                    return false
+                }
+            }
+        }
+
+        // 如果大部分字节是有效的UTF-8，则认为是UTF-8
+        // 允许少量单字节ASCII混杂
+        return totalBytes == validBytes
     }
 
     /**
