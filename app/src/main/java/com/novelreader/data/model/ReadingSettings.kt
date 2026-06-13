@@ -2,9 +2,8 @@ package com.novelreader.data.model
 
 // 翻页方式枚举
 enum class PageMode(val displayName: String) {
-    VERTICAL_SCROLL("上下滚屏"),    // 当前的滚动模式
-    VERTICAL_PAGE("上下翻页"),      // 点击翻页
-    HORIZONTAL_PAGE("左右翻页")     // 滑动翻页
+    VERTICAL_SCROLL("上下滚屏"),    // 滚动模式
+    HORIZONTAL_PAGE("左右翻页")     // 滑动或点击翻页，点击中间弹出菜单
 }
 
 data class ReadingSettings(

@@ -8,6 +8,7 @@ import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
+import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -71,9 +72,13 @@ fun ReaderScreen(
             .fillMaxSize()
             .background(Color(settings.backgroundColor))
     ) {
-        // 内容区域
-        Column(
-            modifier = Modifier
+        // 内容区域 - 根据翻页模式处理点击事件
+        val contentModifier = if (settings.pageMode == PageMode.HORIZONTAL_PAGE) {
+            // 左右翻页模式：不在此处处理点击，由翻页模块处理
+            Modifier.fillMaxSize()
+        } else {
+            // 上下滚屏模式：点击弹出菜单
+            Modifier
                 .fillMaxSize()
                 .clickable(
                     indication = null,
@@ -81,6 +86,10 @@ fun ReaderScreen(
                 ) {
                     viewModel.toggleMenu()
                 }
+        }
+
+        Column(
+            modifier = contentModifier
         ) {
             // 章节标题
             if (chapters.isNotEmpty()) {
@@ -149,14 +158,14 @@ fun ReaderScreen(
                         }
                     }
 
-                    PageMode.VERTICAL_PAGE, PageMode.HORIZONTAL_PAGE -> {
-                        // 翻页模式（上下翻页和左右翻页）
+                    PageMode.HORIZONTAL_PAGE -> {
+                        // 左右翻页模式
                         var currentPage by remember { mutableStateOf(lastReadPosition) }
 
                         // 计算每页显示的段落数
                         val itemsPerPage = remember(settings.fontSize, settings.lineHeight) {
                             val lineHeight = settings.fontSize * settings.lineHeight
-                            val estimatedLinesPerPage = (600f / lineHeight).toInt() // 估算
+                            val estimatedLinesPerPage = (600f / lineHeight).toInt()
                             estimatedLinesPerPage.coerceIn(5, 50)
                         }
 
@@ -174,48 +183,36 @@ fun ReaderScreen(
 
                         val displayParagraphs = pages.getOrElse(currentPage) { paragraphs }
 
-                        // 点击处理
-                        val clickModifier = if (settings.pageMode == PageMode.VERTICAL_PAGE) {
-                            Modifier.clickable(
-                                indication = null,
-                                interactionSource = remember { MutableInteractionSource() }
-                            ) {
-                                // 简化：点击整个区域翻到下一页
-                                if (currentPage < pages.size - 1) {
-                                    currentPage++
-                                    viewModel.updateReadPosition(currentPage)
-                                }
-                            }
-                        } else {
-                            Modifier.pointerInput(Unit) {
-                                detectHorizontalDragGestures(
-                                    onDragEnd = { },
-                                    onHorizontalDrag = { change, dragAmount ->
-                                        change.consume()
-                                        if (dragAmount < -50) {
-                                            if (currentPage < pages.size - 1) {
-                                                currentPage++
-                                                viewModel.updateReadPosition(currentPage)
-                                            }
-                                        } else if (dragAmount > 50) {
-                                            if (currentPage > 0) {
-                                                currentPage--
-                                                viewModel.updateReadPosition(currentPage)
-                                            }
-                                        }
-                                    }
-                                )
-                            }
-                        }
-
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .then(clickModifier)
-                        ) {
+                        Box(modifier = Modifier.fillMaxSize()) {
+                            // 内容区域 - 支持滑动和点击翻页
                             Column(
                                 modifier = Modifier
                                     .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        detectHorizontalDragGestures(
+                                            onDragEnd = { },
+                                            onHorizontalDrag = { change, dragAmount ->
+                                                change.consume()
+                                                if (dragAmount < -50) {
+                                                    if (currentPage < pages.size - 1) {
+                                                        currentPage++
+                                                        viewModel.updateReadPosition(currentPage)
+                                                    }
+                                                } else if (dragAmount > 50) {
+                                                    if (currentPage > 0) {
+                                                        currentPage--
+                                                        viewModel.updateReadPosition(currentPage)
+                                                    }
+                                                }
+                                            }
+                                        )
+                                    }
+                                    .clickable(
+                                        indication = null,
+                                        interactionSource = remember { MutableInteractionSource() }
+                                    ) {
+                                        // 点击由外层Box的pointerInput处理
+                                    }
                                     .padding(16.dp)
                             ) {
                                 displayParagraphs.forEach { paragraph ->
@@ -228,6 +225,41 @@ fun ReaderScreen(
                                         modifier = Modifier.padding(bottom = settings.paragraphSpacing.dp)
                                     )
                                 }
+                            }
+
+                            // 透明覆盖层 - 处理点击区域
+                            Row(
+                                modifier = Modifier
+                                    .fillMaxSize()
+                                    .pointerInput(Unit) {
+                                        detectTapGestures { offset ->
+                                            val screenWidth = size.width.toFloat()
+                                            val thirdWidth = screenWidth / 3
+
+                                            when {
+                                                offset.x < thirdWidth -> {
+                                                    // 左侧1/3：上一页
+                                                    if (currentPage > 0) {
+                                                        currentPage--
+                                                        viewModel.updateReadPosition(currentPage)
+                                                    }
+                                                }
+                                                offset.x > thirdWidth * 2 -> {
+                                                    // 右侧1/3：下一页
+                                                    if (currentPage < pages.size - 1) {
+                                                        currentPage++
+                                                        viewModel.updateReadPosition(currentPage)
+                                                    }
+                                                }
+                                                else -> {
+                                                    // 中间1/3：弹出菜单
+                                                    viewModel.toggleMenu()
+                                                }
+                                            }
+                                        }
+                                    }
+                            ) {
+                                // 透明区域，仅用于捕获点击事件
                             }
 
                             // 页码指示器
