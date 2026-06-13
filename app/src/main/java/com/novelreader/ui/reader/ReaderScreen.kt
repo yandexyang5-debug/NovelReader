@@ -321,6 +321,17 @@ fun TOCDialog(
         }
     }
 
+    // 打开目录时自动滚动到当前章节位置
+    LaunchedEffect(currentIndex, searchQuery) {
+        if (searchQuery.isBlank()) {
+            // 找到当前章节在列表中的位置并滚动
+            val targetIndex = filteredChapters.indexOfFirst { it.first == currentIndex }
+            if (targetIndex >= 0) {
+                listState.animateScrollToItem(targetIndex)
+            }
+        }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text("目录") },
