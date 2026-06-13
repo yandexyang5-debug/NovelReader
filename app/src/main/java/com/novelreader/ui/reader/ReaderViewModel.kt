@@ -1,6 +1,8 @@
 package com.novelreader.ui.reader
 
 import android.app.Application
+import android.content.Context
+import android.content.SharedPreferences
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.novelreader.data.local.NovelDatabase
@@ -19,6 +21,9 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val database = NovelDatabase.getDatabase(application)
     private val repository = BookRepository(database.bookDao(), database.chapterDao())
 
+    // SharedPreferences 用于保存阅读设置
+    private val prefs: SharedPreferences = application.getSharedPreferences("reading_settings", Context.MODE_PRIVATE)
+
     private val _currentBook = MutableStateFlow<Book?>(null)
     val currentBook: StateFlow<Book?> = _currentBook.asStateFlow()
 
@@ -31,7 +36,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     private val _currentChapterContent = MutableStateFlow("")
     val currentChapterContent: StateFlow<String> = _currentChapterContent.asStateFlow()
 
-    private val _settings = MutableStateFlow(ReadingSettings())
+    private val _settings = MutableStateFlow(loadSettings())
     val settings: StateFlow<ReadingSettings> = _settings.asStateFlow()
 
     private val _isMenuVisible = MutableStateFlow(false)
@@ -48,6 +53,37 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     var fullContent: String = ""
         private set
+
+    /**
+     * 从SharedPreferences加载阅读设置
+     */
+    private fun loadSettings(): ReadingSettings {
+        return ReadingSettings(
+            fontSize = prefs.getFloat("fontSize", 18f),
+            lineHeight = prefs.getFloat("lineHeight", 1.8f),
+            letterSpacing = prefs.getFloat("letterSpacing", 0f),
+            paragraphSpacing = prefs.getFloat("paragraphSpacing", 12f),
+            backgroundColor = prefs.getLong("backgroundColor", 0xFFFFFFFF),
+            textColor = prefs.getLong("textColor", 0xFF333333),
+            isNightMode = prefs.getBoolean("isNightMode", false)
+        )
+    }
+
+    /**
+     * 保存阅读设置到SharedPreferences
+     */
+    private fun saveSettings(settings: ReadingSettings) {
+        prefs.edit().apply {
+            putFloat("fontSize", settings.fontSize)
+            putFloat("lineHeight", settings.lineHeight)
+            putFloat("letterSpacing", settings.letterSpacing)
+            putFloat("paragraphSpacing", settings.paragraphSpacing)
+            putLong("backgroundColor", settings.backgroundColor)
+            putLong("textColor", settings.textColor)
+            putBoolean("isNightMode", settings.isNightMode)
+            apply()
+        }
+    }
 
     fun loadBook(bookId: String) {
         viewModelScope.launch {
@@ -147,15 +183,18 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
 
     fun updateSettings(newSettings: ReadingSettings) {
         _settings.value = newSettings
+        saveSettings(newSettings)
     }
 
     fun toggleNightMode() {
         val current = _settings.value
-        _settings.value = current.copy(
+        val newSettings = current.copy(
             isNightMode = !current.isNightMode,
             backgroundColor = if (current.isNightMode) ReadingSettings.BG_WHITE else ReadingSettings.NIGHT_BG,
             textColor = if (current.isNightMode) 0xFF333333 else ReadingSettings.NIGHT_TEXT
         )
+        _settings.value = newSettings
+        saveSettings(newSettings)
     }
 
     private fun saveProgress() {
