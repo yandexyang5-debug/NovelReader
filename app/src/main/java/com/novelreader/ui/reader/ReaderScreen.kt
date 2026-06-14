@@ -9,6 +9,7 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -256,6 +257,21 @@ fun ReaderScreen(
                                                                 }
                                                                 else -> viewModel.toggleMenu()
                                                             }
+                                                        } else {
+                                                            // 拖拽结束，根据最终位移量决定是否翻页
+                                                            val threshold = size.width / 3f
+                                                            when {
+                                                                offsetX < -threshold && currentPage < pages.size - 1 -> {
+                                                                    currentPage++
+                                                                    viewModel.updateReadPosition(currentPage)
+                                                                }
+                                                                offsetX > threshold && currentPage > 0 -> {
+                                                                    currentPage--
+                                                                    viewModel.updateReadPosition(currentPage)
+                                                                }
+                                                                // 不满足阈值：offsetX 归零，动画平滑弹回
+                                                            }
+                                                            offsetX = 0f
                                                         }
                                                         break
                                                     }
