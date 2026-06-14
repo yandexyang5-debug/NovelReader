@@ -9,8 +9,6 @@ import androidx.compose.animation.slideInVertically
 import androidx.compose.animation.slideOutVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
-import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.gestures.detectVerticalDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.*
@@ -229,59 +227,49 @@ fun ReaderScreen(
                                 modifier = Modifier
                                     .fillMaxSize()
                                     .pointerInput(Unit) {
-                                        detectTapGestures { offset ->
-                                            val screenWidth = size.width.toFloat()
-                                            val thirdWidth = screenWidth / 3
+                                        awaitPointerEventScope {
+                                            while (true) {
+                                                val down = awaitFirstDown(requireUnconsumed = false)
+                                                val startX = down.position.x
+                                                var totalDragX = 0f
+                                                var isDrag = false
 
-                                            when {
-                                                offset.x < thirdWidth -> {
-                                                    if (currentPage > 0) {
-                                                        currentPage--
-                                                        viewModel.updateReadPosition(currentPage)
+                                                while (true) {
+                                                    val event = awaitPointerEvent()
+                                                    val change = event.changes.firstOrNull() ?: break
+                                                    if (!change.pressed) {
+                                                        if (!isDrag) {
+                                                            // 位移小，判定为点击，按区域决定行为
+                                                            val screenWidth = size.width.toFloat()
+                                                            when {
+                                                                startX < screenWidth / 3 -> {
+                                                                    if (currentPage > 0) {
+                                                                        currentPage--
+                                                                        viewModel.updateReadPosition(currentPage)
+                                                                    }
+                                                                }
+                                                                startX > screenWidth * 2 / 3 -> {
+                                                                    if (currentPage < pages.size - 1) {
+                                                                        currentPage++
+                                                                        viewModel.updateReadPosition(currentPage)
+                                                                    }
+                                                                }
+                                                                else -> viewModel.toggleMenu()
+                                                            }
+                                                        }
+                                                        break
                                                     }
-                                                }
-                                                offset.x > thirdWidth * 2 -> {
-                                                    if (currentPage < pages.size - 1) {
-                                                        currentPage++
-                                                        viewModel.updateReadPosition(currentPage)
+                                                    val dragX = change.position.x - change.previousPosition.x
+                                                    totalDragX += dragX
+                                                    if (kotlin.math.abs(totalDragX) > 10f) isDrag = true
+                                                    if (isDrag) {
+                                                        change.consume()
+                                                        offsetX += dragX
+                                                        offsetX = offsetX.coerceIn(-size.width.toFloat(), size.width.toFloat())
                                                     }
-                                                }
-                                                else -> {
-                                                    viewModel.toggleMenu()
                                                 }
                                             }
                                         }
-                                    }
-                                    .pointerInput(Unit) {
-                                        detectHorizontalDragGestures(
-                                            onDragEnd = {
-                                                // 滑动结束，重置偏移
-                                                offsetX = 0f
-                                            },
-                                            onHorizontalDrag = { change, dragAmount ->
-                                                change.consume()
-                                                // 累积滑动距离
-                                                offsetX += dragAmount
-
-                                                // 达到阈值时翻页
-                                                val threshold = size.width / 4
-                                                if (offsetX < -threshold) {
-                                                    // 向左滑动：下一页
-                                                    if (currentPage < pages.size - 1) {
-                                                        currentPage++
-                                                        viewModel.updateReadPosition(currentPage)
-                                                    }
-                                                    offsetX = 0f
-                                                } else if (offsetX > threshold) {
-                                                    // 向右滑动：上一页
-                                                    if (currentPage > 0) {
-                                                        currentPage--
-                                                        viewModel.updateReadPosition(currentPage)
-                                                    }
-                                                    offsetX = 0f
-                                                }
-                                            }
-                                        )
                                     }
                             )
 
