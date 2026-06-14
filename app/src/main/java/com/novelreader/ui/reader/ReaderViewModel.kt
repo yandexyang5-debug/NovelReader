@@ -141,6 +141,7 @@ class ReaderViewModel(application: Application) : AndroidViewModel(application) 
     fun goToChapter(chapterIndex: Int) {
         val chapterList = _chapters.value
         if (chapterIndex in chapterList.indices) {
+            _lastReadPosition.value = 0
             _currentChapterIndex.value = chapterIndex
             loadChapterContent(chapterList[chapterIndex])
             saveProgress()
